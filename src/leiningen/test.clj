@@ -106,6 +106,7 @@
                                               {:name ns#
                                                :ns ns#}))]
                               (clojure.test/do-report {:type :error
+                                                       ::type :uncaught-exception-in-test-fixture
                                                        :message "Uncaught exception in test fixture"
                                                        :expected nil
                                                        :actual t#})
@@ -121,7 +122,10 @@
                                   test-name# (-> first-var# :name name)]
                               (swap! failures# update-in [ns-name#] (fnil conj []) test-name#)
                               (newline)
-                              (println "lein test :only" (str ns-name# "/" test-name#)))))
+                              (println "lein test :only"
+                                       (str ns-name#
+                                            (when-not (= :uncaught-exception-in-test-fixture (::type m#))
+                                              (str "/" test-name#)))))))
                         (if (= :begin-test-ns (:type m#))
                           (clojure.test/with-test-out
                             (newline)
@@ -130,11 +134,11 @@
                 summary# (binding [clojure.test/*test-out* *out*]
                            (~form-for-suppressing-unselected-tests
                             selected-namespaces# ~selectors
-                            #(apply ~'clojure.test/run-tests selected-namespaces#)))]
+                            #(apply clojure.test/run-tests selected-namespaces#)))]
             (spit ".lein-failures" (if ~*monkeypatch?*
                                      (pr-str @failures#)
                                      "#<disabled :monkeypatch-clojure-test>"))
-            (let [total# (+ (int (:error summary#)) (int (:fail summary#)))]
+            (let [total# (min 1 (+ (int (:error summary#)) (int (:fail summary#))))]
               (if ~*exit-after-tests*
                 (System/exit total#)
                 total#)))))))
